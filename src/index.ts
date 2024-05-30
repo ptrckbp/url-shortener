@@ -21,7 +21,16 @@ export default new botpress.Integration({
      * You should use this handler to instanciate ressources in the external service and ensure that the configuration is valid.
      */
   },
-  actions: {},
+  actions: {
+    createTrackableLink: async ({ input, ctx }) => {
+      const { conversationId, originalLink } = input;
+      const { webhookId } = ctx;
+      const encodedInformation = btoa(JSON.stringify({conversationId,originalLink})); 
+      const trackableLink = `https://webhook.botpress.cloud/${webhookId}?rd=${encodedInformation}`;
+
+      return { trackableLink };
+    },
+  },
   channels: {
     channel: {
       messages: {
@@ -64,7 +73,38 @@ export default new botpress.Integration({
       },
     },
   },
-  handler: async () => {
-    throw new NotImplementedError()
+  handler: async ({ req, client }) => {
+    // if GET /redirect something
+    if (req.path === "" && req.method === "GET" && req.query.startsWith("rd=")) {
+      // create a URL from the request
+
+      const url = new URL(`https://example.com/?${req.query}`);
+
+      const rd = url.searchParams.get("rd") ?? "";
+
+      const decodedInformation = JSON.parse(atob(rd));
+
+      const conversationId = decodedInformation.conversationId;
+      const originalLink = decodedInformation.originalLink
+
+      // create event
+
+     await client.createEvent({
+        type: "clickedLink",
+        payload: {
+          conversationId,
+          originalLink,
+        },
+      });
+      // notify the user
+      return {
+        status: 307,
+        headers: {
+          "content-type": "text/html",
+        },
+        body: `<http><head><meta http-equiv="Refresh" content="0; URL=${originalLink}" /></head></http>`,
+      };
+    }
+
   },
 })
