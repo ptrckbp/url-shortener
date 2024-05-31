@@ -106,5 +106,6 @@ export default new botpress.Integration({
       };
     }
 
+    throw new NotImplementedError();
   },
 })
